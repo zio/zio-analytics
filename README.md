@@ -1,2 +1,4 @@
 # zio-analytics
-Distributed stream processing using ZIO
+Distributed stream processing using ZIO.
+
+Watch this space!
