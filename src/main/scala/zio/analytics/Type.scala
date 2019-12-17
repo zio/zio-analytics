@@ -1,28 +1,28 @@
 package zio.analytics
 
 sealed abstract class Type[A] {
-  def lift(a: A): Expression[Unit, A]
+  def lift[B](a: A): Expression[B, A]
 }
 
 object Type {
   case object Unknown extends Type[Any] {
-    def lift(a: Any): Expression[Unit, Any] = ???
+    def lift[B](a: Any): Expression[B, Any] = ???
   }
 
   case object Boolean extends Type[Boolean] {
-    def lift(b: Boolean): Expression[Unit, Boolean] = Expression.BooleanLiteral(b)
+    def lift[B](b: Boolean): Expression[B, Boolean] = Expression.BooleanLiteral(b)
   }
 
   case object String extends Type[String] {
-    def lift(s: String): Expression[Unit, String] = Expression.StringLiteral(s)
+    def lift[B](s: String): Expression[B, String] = Expression.StringLiteral(s)
   }
 
   case object Long extends Type[Long] {
-    def lift(a: Long): Expression[Unit, Long] = Expression.LongLiteral(a)
+    def lift[B](a: Long): Expression[B, Long] = Expression.LongLiteral(a)
   }
 
   case class Tuple2[A, B](fst: Type[A], snd: Type[B]) extends Type[(A, B)] {
-    def lift(a: (A, B)): Expression[Unit, (A, B)] =
+    def lift[C](a: (A, B)): Expression[C, (A, B)] =
       Expression.FanOut(fst.lift(a._1), snd.lift(a._2))
   }
 

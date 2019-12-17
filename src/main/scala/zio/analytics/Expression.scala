@@ -37,7 +37,6 @@ object Expression {
     def _2: A =>: C = tp >>> NthColumn(1)
   }
 
-  implicit def liftLong[A](l: Long): A =>: Long                         = LongLiteral(l)
-  implicit def liftString[A](s: String): A =>: String                   = StringLiteral(s)
-  implicit def liftTuple[A, B, C](tp: (A =>: B, A =>: C)): A =>: (B, C) = FanOut(tp._1, tp._2)
+  implicit def liftSingle[A, B](b: B)(implicit B: Type[B]): Expression[A, B] = B.lift(b)
+  implicit def liftTuple[A, B, C](tp: (A =>: B, A =>: C)): A =>: (B, C)      = FanOut(tp._1, tp._2)
 }
