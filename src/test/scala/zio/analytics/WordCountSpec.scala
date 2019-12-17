@@ -1,7 +1,5 @@
 package zio.analytics
 
-import zio.analytics.api._
-
 object WordCountSpec {
   val ds = DataStream
     .fromLiterals("a quick", "brown fox")
