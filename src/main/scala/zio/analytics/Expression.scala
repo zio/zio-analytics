@@ -18,6 +18,7 @@ object Expression {
   case class Length[V]()                                                       extends Expression[List[V], Long]
   case class GroupKey[K, V]()                                                  extends Expression[Group[K, V], K]
   case class GroupValues[K, V]()                                               extends Expression[Group[K, V], List[V]]
+  case object ListSum                                                          extends Expression[List[Long], Long]
 
   case object Mul   extends Expression[(Long, Long), Long]
   case object Sum   extends Expression[(Long, Long), Long]
@@ -48,6 +49,10 @@ object Expression {
 
   implicit class ListOps[A, B](l: A =>: List[B]) {
     def length: A =>: Long = l >>> Length[B]
+  }
+
+  implicit class LongListOps[A](l: A =>: List[Long]) {
+    def sum: A =>: Long = l >>> ListSum
   }
 
   implicit class GroupOps[A, K, V](g: A =>: Group[K, V]) {

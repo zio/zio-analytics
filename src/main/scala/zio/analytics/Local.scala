@@ -36,6 +36,8 @@ object Local {
         (g: Group[k, v]) => g.key
       case _: Expression.GroupValues[k, v] =>
         (g: Group[k, v]) => g.values.toSeq.toList
+      case Expression.ListSum =>
+        (l: List[Long]) => l.sum
     }
 
   def evalStream[A](ds: DataStream[A]): Stream[Nothing, A] =
@@ -75,6 +77,13 @@ object Local {
 
         evalStream(ds.ds).groupBy(g => UIO.succeed(g.key -> g.value)) { (k, vs) =>
           Stream.fromEffect(vs.runCollect.map(vs => reducer(Group(k, Chunk.fromIterable(vs)))))
+        }
+
+      case ds: DataStream.MapValues[k, v, b] =>
+        val ff = evalExpr(ds.f)
+
+        evalStream(ds.ds).map {
+          case Grouped(k, v) => Grouped(k, ff(v))
         }
     }
 }

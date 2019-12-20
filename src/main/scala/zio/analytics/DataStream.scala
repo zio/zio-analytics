@@ -12,6 +12,7 @@ object DataStream {
       extends DataStream[B]
   case class GroupBy[A, K, V](ds: DataStream[A], f: Expression[A, (K, V)])               extends DataStream[Grouped[K, V]]
   case class Fold[K, V, R](ds: DataStream[Grouped[K, V]], f: Expression[Group[K, V], R]) extends DataStream[R]
+  case class MapValues[K, V, B](ds: DataStream[Grouped[K, V]], f: Expression[V, B])      extends DataStream[Grouped[K, B]]
 
   implicit class Ops[A](ds: DataStream[A]) {
     def map[B: Type](f: (A =>: A) => (A =>: B)): DataStream[B]             = Map(ds, f(Expression.Id()))
@@ -27,6 +28,8 @@ object DataStream {
   implicit class GroupedOps[K, V](ds: DataStream[Grouped[K, V]]) {
     def fold[R: Type](f: (Group[K, V] =>: Group[K, V]) => (Group[K, V] =>: R)): DataStream[R] =
       Fold(ds, f(Expression.Id()))
+    def mapValues[B: Type](f: (V =>: V) => (V =>: B)): DataStream[Grouped[K, B]] =
+      MapValues(ds, f(Expression.Id()))
   }
 
   def fromLiterals[A](as: A*)(implicit A: Type[A]): DataStream[A] =

@@ -9,7 +9,18 @@ object WordCountSpec extends App {
       .fromLiterals("quick", "quick", "brown", "brown")
       .mapConcat(_.split(" "))
       .groupBy(word => (word, 1L))
-      .fold(group => (group.key, group.values.length))
+      .mapValues(_ * 4L)
+      .fold(group => (group.key, group.values.sum))
+      .mapAccumulate(0L) { tp =>
+        val state    = tp._1
+        val element  = tp._2
+        val newState = state |+| element._2
+
+        (newState, Expression.sequenceTuple((newState, tp._2)))
+      }
+
+    println("DataStream plan:")
+    pprint.pprintln(ds)
 
     val stream = Local.evalStream(ds)
 
