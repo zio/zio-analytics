@@ -1,5 +1,6 @@
 package zio.analytics
 
+import zio.{ Chunk, UIO }
 import zio.stream.Stream
 
 object Local {
@@ -24,6 +25,17 @@ object Local {
       case Expression.Sum                  => (tp: (Long, Long)) => tp._1 + tp._2
       case Expression.Split                => (tp: (String, String)) => tp._1.split(tp._2).toList
       case e: Expression.NthColumn[A, B]   => (tp: A) => tp.asInstanceOf[Product].productElement(e.n).asInstanceOf[B]
+      case e: Expression.KeyValue[A, k, v] =>
+        val keyExpr   = evalExpr(e.key)
+        val valueExpr = evalExpr(e.value)
+
+        (a: A) => Grouped(keyExpr(a), valueExpr(a))
+      case _: Expression.Length[v] =>
+        (l: List[v]) => l.length.toLong
+      case _: Expression.GroupKey[k, v] =>
+        (g: Group[k, v]) => g.key
+      case _: Expression.GroupValues[k, v] =>
+        (g: Group[k, v]) => g.values.toSeq.toList
     }
 
   def evalStream[A](ds: DataStream[A]): Stream[Nothing, A] =
@@ -48,5 +60,21 @@ object Local {
         val ff = evalExpr(ds.f)
 
         evalStream(ds.ds).mapAccum(zz(()))(Function.untupled(ff))
+
+      case ds: DataStream.GroupBy[a, k, v] =>
+        val ff = evalExpr(ds.f)
+
+        evalStream(ds.ds).map { a =>
+          val (k, v) = ff(a)
+
+          Grouped(k, v)
+        }
+
+      case ds: DataStream.Fold[k, v, A] =>
+        val reducer = evalExpr(ds.f)
+
+        evalStream(ds.ds).groupBy(g => UIO.succeed(g.key -> g.value)) { (k, vs) =>
+          Stream.fromEffect(vs.runCollect.map(vs => reducer(Group(k, Chunk.fromIterable(vs)))))
+        }
     }
 }
