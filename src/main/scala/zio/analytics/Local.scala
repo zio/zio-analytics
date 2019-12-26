@@ -85,5 +85,17 @@ object Local {
         evalStream(ds.ds).map {
           case Grouped(k, v) => Grouped(k, ff(v))
         }
+
+      case ds: DataStream.AssignTimestamps[a] =>
+        val ff = evalExpr(ds.f)
+
+        evalStream(ds.ds).map(a => Timestamped(ff(a), a))
+
+      case _: DataStream.FoldWindow[k, v, s] =>
+        // val z      = evalExpr(ds.z)
+        // val f      = evalExpr(ds.f)
+        // val stream = evalStream(ds.ds)
+
+        ???
     }
 }

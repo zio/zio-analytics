@@ -4,6 +4,7 @@ import zio.Chunk
 
 case class Grouped[K, V](key: K, value: V)
 case class Group[K, V](key: K, values: Chunk[V])
+case class Timestamped[A](timestamp: Long, value: A)
 
 sealed abstract class Expression[-A, +B]
 object Expression {
