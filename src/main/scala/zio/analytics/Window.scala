@@ -8,7 +8,7 @@ sealed abstract class WindowAssigner {
 object WindowAssigner {
   case class Fixed(size: Duration, step: Duration) extends WindowAssigner {
     def assign(timestamp: Long): List[Window] = {
-      val sizeMillis  = size.toMillis
+      val sizeMillis = size.toMillis
       val firstStart = (timestamp / sizeMillis) * sizeMillis
 
       (firstStart until (firstStart + sizeMillis) by step.toMillis)
@@ -31,3 +31,4 @@ object WindowAssigner {
 }
 
 case class Window(lower: Long, upper: Long)
+case class Windowed[A](window: Window, value: A)

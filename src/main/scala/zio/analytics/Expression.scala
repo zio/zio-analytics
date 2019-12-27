@@ -27,6 +27,9 @@ object Expression {
 
   case class NthColumn[A <: Product, B](n: Int) extends Expression[A, B]
 
+  case class TimestampedTimestamp[A]() extends Expression[Timestamped[A], Long]
+  case class TimestampedValue[A]()     extends Expression[Timestamped[A], A]
+
   implicit class FunctionOps[A, B](f: A =>: B) {
     def >>>[C](g: B =>: C): A =>: C              = Compose(g, f)
     def <<<[C](g: C =>: A): C =>: B              = Compose(f, g)
@@ -43,9 +46,15 @@ object Expression {
     def split(delimiter: A =>: String): A =>: List[String] = (s &&& delimiter) >>> Split
   }
 
-  implicit class TupleOps[A, B, C](tp: A =>: (B, C)) {
+  implicit class Tuple2Ops[A, B, C](tp: A =>: (B, C)) {
     def _1: A =>: B = tp >>> NthColumn(0)
     def _2: A =>: C = tp >>> NthColumn(1)
+  }
+
+  implicit class Tuple3Ops[A, B, C, D](tp: A =>: (B, C, D)) {
+    def _1: A =>: B = tp >>> NthColumn(0)
+    def _2: A =>: C = tp >>> NthColumn(1)
+    def _3: A =>: D = tp >>> NthColumn(2)
   }
 
   implicit class ListOps[A, B](l: A =>: List[B]) {
@@ -59,6 +68,11 @@ object Expression {
   implicit class GroupOps[A, K, V](g: A =>: Group[K, V]) {
     def key: A =>: K          = g >>> GroupKey[K, V]
     def values: A =>: List[V] = g >>> GroupValues[K, V]
+  }
+
+  implicit class TimestampedOps[A, V](t: A =>: Timestamped[V]) {
+    def timestamp: A =>: Long = t >>> TimestampedTimestamp()
+    def value: A =>: V        = t >>> TimestampedValue()
   }
 
   implicit def liftSingle[A, B](b: B)(implicit B: Type[B]): Expression[A, B]            = B.lift(b)

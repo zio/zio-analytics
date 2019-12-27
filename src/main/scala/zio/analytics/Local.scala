@@ -38,6 +38,10 @@ object Local {
         (g: Group[k, v]) => g.values.toSeq.toList
       case Expression.ListSum =>
         (l: List[Long]) => l.sum
+      case _: Expression.TimestampedValue[a] =>
+        (a: Timestamped[a]) => a.value
+      case _: Expression.TimestampedTimestamp[a] =>
+        (a: Timestamped[a]) => a.timestamp
     }
 
   def evalStream[A](ds: DataStream[A]): Stream[Nothing, A] =
@@ -63,13 +67,11 @@ object Local {
 
         evalStream(ds.ds).mapAccum(zz(()))(Function.untupled(ff))
 
-      case ds: DataStream.GroupBy[a, k, v] =>
-        val ff = evalExpr(ds.f)
+      case ds: DataStream.GroupBy[a, k] =>
+        val extractKey = evalExpr(ds.f)
 
         evalStream(ds.ds).map { a =>
-          val (k, v) = ff(a)
-
-          Grouped(k, v)
+          Grouped(extractKey(a), a)
         }
 
       case ds: DataStream.Fold[k, v, A] =>
@@ -91,11 +93,22 @@ object Local {
 
         evalStream(ds.ds).map(a => Timestamped(ff(a), a))
 
-      case _: DataStream.FoldWindow[k, v, s] =>
-        // val z      = evalExpr(ds.z)
-        // val f      = evalExpr(ds.f)
-        // val stream = evalStream(ds.ds)
+      case ds: DataStream.FoldWindow[k, v, s] =>
+        val z      = evalExpr(ds.z)
+        val f      = evalExpr(ds.f)
+        val stream = evalStream(ds.ds)
 
-        ???
+        stream.mapConcat { g =>
+          val key     = g.key
+          val windows = ds.window.assign(g.value.timestamp)
+
+          windows.map(w => Grouped(w -> key, g.value.value))
+        }.groupBy(g => UIO.succeed(g.key -> g.value)) { (k, vs) =>
+          Stream
+            .fromEffect(vs.fold(z(())) { (s, a) =>
+              f((s, k._1, a))
+            })
+            .map(s => Grouped(k._2, Windowed(k._1, s)))
+        }
     }
 }

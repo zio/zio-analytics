@@ -10,16 +10,16 @@ object DataStream {
   case class Filter[A](ds: DataStream[A], f: Expression[A, Boolean])       extends DataStream[A]
   case class MapAccumulate[S, A, B](ds: DataStream[A], z: Expression[Unit, S], f: Expression[(S, A), (S, B)])
       extends DataStream[B]
-  case class GroupBy[A, K, V](ds: DataStream[A], f: Expression[A, (K, V)])               extends DataStream[Grouped[K, V]]
+  case class GroupBy[A, K](ds: DataStream[A], f: Expression[A, K])                       extends DataStream[Grouped[K, A]]
   case class Fold[K, V, R](ds: DataStream[Grouped[K, V]], f: Expression[Group[K, V], R]) extends DataStream[R]
   case class MapValues[K, V, B](ds: DataStream[Grouped[K, V]], f: Expression[V, B])      extends DataStream[Grouped[K, B]]
   case class AssignTimestamps[A](ds: DataStream[A], f: Expression[A, Long])              extends DataStream[Timestamped[A]]
   case class FoldWindow[K, V, S](
     ds: DataStream[Grouped[K, Timestamped[V]]],
-    window: Window,
+    window: WindowAssigner,
     z: Expression[Unit, S],
-    f: Expression[(S, V), S]
-  ) extends DataStream[S]
+    f: Expression[(S, Window, V), S]
+  ) extends DataStream[Grouped[K, Windowed[S]]]
 
   implicit class Ops[A](ds: DataStream[A]) {
     def map[B: Type](f: (A =>: A) => (A =>: B)): DataStream[B]             = Map(ds, f(Expression.Id()))
@@ -28,7 +28,7 @@ object DataStream {
       Filter(ds, f(Expression.Id()))
     def mapAccumulate[S: Type, B: Type](z: (Unit =>: S))(f: ((S, A) =>: (S, A)) => ((S, A) =>: (S, B))): DataStream[B] =
       MapAccumulate(ds, z, f(Expression.Id()))
-    def groupBy[K: Type, V: Type](f: (A =>: A) => (A =>: (K, V))): DataStream[Grouped[K, V]] =
+    def groupBy[K: Type](f: (A =>: A) => (A =>: K)): DataStream[Grouped[K, A]] =
       GroupBy(ds, f(Expression.Id()))
     def assignTimestamps(f: (A =>: A) => (A =>: Long)): DataStream[Timestamped[A]] =
       AssignTimestamps(ds, f(Expression.Id()))
@@ -42,7 +42,9 @@ object DataStream {
   }
 
   implicit class GroupedTimestampedOps[K, V](ds: DataStream[Grouped[K, Timestamped[V]]]) {
-    def foldWindow[S: Type](window: Window, z: Unit =>: S)(f: ((S, V) =>: (S, V)) => ((S, V) =>: S)): DataStream[S] =
+    def foldWindow[S: Type](window: WindowAssigner, z: Unit =>: S)(
+      f: ((S, Window, V) =>: (S, Window, V)) => ((S, Window, V) =>: S)
+    ): DataStream[Grouped[K, Windowed[S]]] =
       FoldWindow(ds, window, z, f(Expression.Id()))
   }
 
