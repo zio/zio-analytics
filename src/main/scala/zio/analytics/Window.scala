@@ -22,7 +22,7 @@ object WindowAssigner {
 
   case class Dynamic(gap: Duration) extends WindowAssigner {
     // TODO
-    def assign(timestamp: Long): List[Window] = List()
+    def assign(timestamp: Long): List[Window] = ???
   }
 
   def tumbling(size: Duration): WindowAssigner                = Fixed(size, size)
