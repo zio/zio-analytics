@@ -6,7 +6,15 @@ case class Grouped[K, V](key: K, value: V)
 case class Group[K, V](key: K, values: Chunk[V])
 case class Timestamped[A](timestamp: Long, value: A)
 
-sealed abstract class Expression[-A, +B]
+sealed abstract class Expression[-A, +B] { self =>
+  // We have to define `+` here rather than on the implicit classes
+  // like everything else to shadow Predef's `any2stringadd`.
+  def +[A1 <: A](that: A1 =>: Long)(implicit ev: B <:< Long): A1 =>: Long = {
+    val _ = ev
+    (self.asInstanceOf[A1 =>: Long] &&& that) >>> Expression.Sum
+  }
+}
+
 object Expression {
   case class Id[A]()                                                           extends Expression[A, A]
   case class Compose[A, B, C](f: Expression[B, C], g: Expression[A, B])        extends Expression[A, C]
@@ -38,8 +46,7 @@ object Expression {
   }
 
   implicit class NumberOps[A](x: A =>: Long) {
-    def |+|(y: A =>: Long): A =>: Long = (x &&& y) >>> Sum
-    def *(y: A =>: Long): A =>: Long   = (x &&& y) >>> Mul
+    def *(y: A =>: Long): A =>: Long = (x &&& y) >>> Mul
   }
 
   implicit class StringOps[A](s: A =>: String) {

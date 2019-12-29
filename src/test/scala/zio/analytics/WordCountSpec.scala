@@ -13,7 +13,7 @@ object WordCountSpec extends App {
       .foldWindow(WindowAssigner.tumbling(10.millis), 0L) { accAndEl =>
         val acc = accAndEl._1
 
-        acc |+| 1L
+        acc + 1L
       }
 
     println("DataStream plan:")
