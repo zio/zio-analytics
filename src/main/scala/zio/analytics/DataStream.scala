@@ -6,7 +6,7 @@ sealed abstract class DataStream[A]
 object DataStream {
   trait ComputeGrouping[A, K] {
     type Out
-    def compute: (K, A) =>: Out
+    val compute: (K, A) =>: Out
   }
 
   object ComputeGrouping extends LowPrioComputeGrouping {
@@ -14,7 +14,7 @@ object DataStream {
     implicit def alreadyGrouped[A, K0, K]: Aux[Grouped[K0, A], K, Grouped[(K0, K), A]] =
       new ComputeGrouping[Grouped[K0, A], K] {
         type Out = Grouped[(K0, K), A]
-        def compute: (K, Grouped[K0, A]) =>: Out = {
+        val compute: (K, Grouped[K0, A]) =>: Out = {
           val k0: Grouped[K0, A] =>: K0 = Expression.GroupedKey()
           val idk: K =>: K              = Expression.Id[K]()
 
@@ -33,7 +33,7 @@ object DataStream {
     implicit def otherwise[A, K]: ComputeGrouping.Aux[A, K, Grouped[K, A]] =
       new ComputeGrouping[A, K] {
         type Out = Grouped[K, A]
-        def compute: (K, A) =>: Grouped[K, A] = Expression.ConstructGrouped[K, A]()
+        val compute: (K, A) =>: Grouped[K, A] = Expression.ConstructGrouped[K, A]()
       }
   }
 
@@ -43,7 +43,7 @@ object DataStream {
   case class Filter[A](ds: DataStream[A], f: Expression[A, Boolean])       extends DataStream[A]
   case class MapAccumulate[S, A, B](ds: DataStream[A], z: Expression[Unit, S], f: Expression[(S, A), (S, B)])
       extends DataStream[B]
-  case class GroupBy[A, K, R](ds: DataStream[A], f: Expression[A, K], c: ComputeGrouping.Aux[A, K, R])
+  case class GroupBy[A, K, R](ds: DataStream[A], f: Expression[A, K], computeGrouping: (K, A) =>: R)
       extends DataStream[R]
   case class Fold[K, V, R](ds: DataStream[Grouped[K, V]], f: Expression[Group[K, V], R]) extends DataStream[R]
   case class MapValues[K, V, B](ds: DataStream[Grouped[K, V]], f: Expression[V, B])      extends DataStream[Grouped[K, B]]
@@ -65,7 +65,7 @@ object DataStream {
     def groupBy[K: Type](
       f: (A =>: A) => (A =>: K)
     )(implicit computeGrouping: ComputeGrouping[A, K]): DataStream[computeGrouping.Out] =
-      GroupBy[A, K, computeGrouping.Out](ds, f(Expression.Id()), computeGrouping)
+      GroupBy[A, K, computeGrouping.Out](ds, f(Expression.Id()), computeGrouping.compute)
     def assignTimestamps(f: (A =>: A) => (A =>: Long)): DataStream[Timestamped[A]] =
       AssignTimestamps(ds, f(Expression.Id()))
   }

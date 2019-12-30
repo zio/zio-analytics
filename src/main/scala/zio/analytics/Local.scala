@@ -151,11 +151,12 @@ object Local {
           }
 
       case ds: DataStream.GroupBy[a, k, r] =>
-        val extractKey = evalExpr(ds.f)
+        val extractKey      = evalExpr(ds.f)
+        val computeGrouping = evalExpr(ds.computeGrouping)
 
         evalStream(ds.ds).map {
           case w @ Watermark(_) => w
-          case Element(a)       => Element(evalExpr(ds.c.compute)((extractKey(a), a)))
+          case Element(a)       => Element(computeGrouping((extractKey(a), a)))
         }
 
       case ds: DataStream.Fold[k, v, A] =>
