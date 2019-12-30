@@ -20,8 +20,9 @@ object DataStream {
 
           val keytp: (K, Grouped[K0, A]) =>: (K0, K) = Expression.Split(idk, k0) >>> Expression.FlipTuple()
 
-          val a: (K, Grouped[K0, A]) =>: A = Expression.NthColumn[(K, Grouped[K0, A]), Grouped[K0, A]](1) >>> Expression
-            .GroupedValue[K0, A]
+          val a: (K, Grouped[K0, A]) =>: A =
+            Expression.NthColumn[(K, Grouped[K0, A]), Grouped[K0, A]](1) >>>
+              Expression.GroupedValue[K0, A]
 
           (keytp &&& a) >>> Expression.ConstructGrouped()
         }
