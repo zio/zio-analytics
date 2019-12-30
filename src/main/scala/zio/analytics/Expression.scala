@@ -27,7 +27,11 @@ object Expression {
   case class Length[V]()                                                       extends Expression[List[V], Long]
   case class GroupKey[K, V]()                                                  extends Expression[Group[K, V], K]
   case class GroupValues[K, V]()                                               extends Expression[Group[K, V], List[V]]
+  case class GroupedKey[K, V]()                                                extends Expression[Grouped[K, V], K]
+  case class GroupedValue[K, V]()                                              extends Expression[Grouped[K, V], V]
+  case class ConstructGrouped[K, V]()                                          extends Expression[(K, V), Grouped[K, V]]
   case object ListSum                                                          extends Expression[List[Long], Long]
+  case class FlipTuple[A, B]()                                                 extends Expression[(A, B), (B, A)]
 
   case object Mul   extends Expression[(Long, Long), Long]
   case object Sum   extends Expression[(Long, Long), Long]
@@ -75,6 +79,11 @@ object Expression {
   implicit class GroupOps[A, K, V](g: A =>: Group[K, V]) {
     def key: A =>: K          = g >>> GroupKey[K, V]
     def values: A =>: List[V] = g >>> GroupValues[K, V]
+  }
+
+  implicit class GroupedOps[A, K, V](g: A =>: Grouped[K, V]) {
+    def key: A =>: K    = g >>> GroupedKey[K, V]
+    def values: A =>: V = g >>> GroupedValue[K, V]
   }
 
   implicit class TimestampedOps[A, V](t: A =>: Timestamped[V]) {

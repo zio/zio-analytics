@@ -25,6 +25,7 @@ object Local {
       case Expression.Sum                  => (tp: (Long, Long)) => tp._1 + tp._2
       case Expression.Split                => (tp: (String, String)) => tp._1.split(tp._2).toList
       case e: Expression.NthColumn[A, B]   => (tp: A) => tp.asInstanceOf[Product].productElement(e.n).asInstanceOf[B]
+      case _: Expression.FlipTuple[a, b]   => (tp: (a, b)) => (tp._2, tp._1)
       case e: Expression.KeyValue[A, k, v] =>
         val keyExpr   = evalExpr(e.key)
         val valueExpr = evalExpr(e.value)
@@ -36,6 +37,12 @@ object Local {
         (g: Group[k, v]) => g.key
       case _: Expression.GroupValues[k, v] =>
         (g: Group[k, v]) => g.values.toSeq.toList
+      case _: Expression.GroupedKey[k, v] =>
+        (g: Grouped[k, v]) => g.key
+      case _: Expression.GroupedValue[k, v] =>
+        (g: Grouped[k, v]) => g.value
+      case _: Expression.ConstructGrouped[k, v] =>
+        (tp: (k, v)) => Grouped(tp._1, tp._2)
       case Expression.ListSum =>
         (l: List[Long]) => l.sum
       case _: Expression.TimestampedValue[a] =>
@@ -143,12 +150,12 @@ object Local {
             }
           }
 
-      case ds: DataStream.GroupBy[a, k] =>
+      case ds: DataStream.GroupBy[a, k, r] =>
         val extractKey = evalExpr(ds.f)
 
         evalStream(ds.ds).map {
           case w @ Watermark(_) => w
-          case Element(a)       => Element(Grouped(extractKey(a), a))
+          case Element(a)       => Element(evalExpr(ds.c.compute)((extractKey(a), a)))
         }
 
       case ds: DataStream.Fold[k, v, A] =>
