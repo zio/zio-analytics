@@ -5,7 +5,7 @@ import zio.duration.Duration
 sealed abstract class WindowAssigner {
   def assign(timestamp: Long): List[Window]
 }
-object WindowAssigner {
+object WindowAssigner                {
   case class Fixed(size: Duration, step: Duration) extends WindowAssigner {
     def assign(timestamp: Long): List[Window] = {
       val sizeMillis = size.toMillis

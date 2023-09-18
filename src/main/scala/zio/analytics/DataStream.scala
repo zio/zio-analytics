@@ -37,10 +37,10 @@ object DataStream {
       }
   }
 
-  case class Literals[A](data: Chunk[Expression[Unit, A]])                 extends DataStream[A]
-  case class Map[A, B](ds: DataStream[A], f: Expression[A, B])             extends DataStream[B]
-  case class MapConcat[A, B](ds: DataStream[A], f: Expression[A, List[B]]) extends DataStream[B]
-  case class Filter[A](ds: DataStream[A], f: Expression[A, Boolean])       extends DataStream[A]
+  case class Literals[A](data: Chunk[Expression[Unit, A]])                               extends DataStream[A]
+  case class Map[A, B](ds: DataStream[A], f: Expression[A, B])                           extends DataStream[B]
+  case class MapConcat[A, B](ds: DataStream[A], f: Expression[A, List[B]])               extends DataStream[B]
+  case class Filter[A](ds: DataStream[A], f: Expression[A, Boolean])                     extends DataStream[A]
   case class MapAccumulate[S, A, B](ds: DataStream[A], z: Expression[Unit, S], f: Expression[(S, A), (S, B)])
       extends DataStream[B]
   case class GroupBy[A, K, R](ds: DataStream[A], f: Expression[A, K], computeGrouping: (K, A) =>: R)
@@ -53,27 +53,27 @@ object DataStream {
     window: WindowAssigner,
     z: Expression[Unit, S],
     f: Expression[(S, Window, V), S]
-  ) extends DataStream[Grouped[K, Windowed[S]]]
+  )                                                                                      extends DataStream[Grouped[K, Windowed[S]]]
 
   implicit class Ops[A](ds: DataStream[A]) {
-    def map[B: Type](f: (A =>: A) => (A =>: B)): DataStream[B]             = Map(ds, f(Expression.Id()))
-    def mapConcat[B: Type](f: (A =>: A) => (A =>: List[B])): DataStream[B] = MapConcat(ds, f(Expression.Id()))
-    def filter(ds: DataStream[A])(f: (A =>: A) => (A =>: Boolean)): DataStream[A] =
+    def map[B: Type](f: (A =>: A) => (A =>: B)): DataStream[B]                                                         = Map(ds, f(Expression.Id()))
+    def mapConcat[B: Type](f: (A =>: A) => (A =>: List[B])): DataStream[B]                                             = MapConcat(ds, f(Expression.Id()))
+    def filter(ds: DataStream[A])(f: (A =>: A) => (A =>: Boolean)): DataStream[A]                                      =
       Filter(ds, f(Expression.Id()))
     def mapAccumulate[S: Type, B: Type](z: (Unit =>: S))(f: ((S, A) =>: (S, A)) => ((S, A) =>: (S, B))): DataStream[B] =
       MapAccumulate(ds, z, f(Expression.Id()))
     def groupBy[K: Type](
       f: (A =>: A) => (A =>: K)
-    )(implicit computeGrouping: ComputeGrouping[A, K]): DataStream[computeGrouping.Out] =
+    )(implicit computeGrouping: ComputeGrouping[A, K]): DataStream[computeGrouping.Out]                                =
       GroupBy[A, K, computeGrouping.Out](ds, f(Expression.Id()), computeGrouping.compute)
-    def assignTimestamps(f: (A =>: A) => (A =>: Long)): DataStream[Timestamped[A]] =
+    def assignTimestamps(f: (A =>: A) => (A =>: Long)): DataStream[Timestamped[A]]                                     =
       AssignTimestamps(ds, f(Expression.Id()))
   }
 
   implicit class GroupedOps[K, V](ds: DataStream[Grouped[K, V]]) {
     def fold[R: Type](f: (Group[K, V] =>: Group[K, V]) => (Group[K, V] =>: R)): DataStream[R] =
       Fold(ds, f(Expression.Id()))
-    def mapValues[B: Type](f: (V =>: V) => (V =>: B)): DataStream[Grouped[K, B]] =
+    def mapValues[B: Type](f: (V =>: V) => (V =>: B)): DataStream[Grouped[K, B]]              =
       MapValues(ds, f(Expression.Id()))
   }
 

@@ -6,46 +6,46 @@ import zio.stream._
 object Local {
   def evalExpr[A, B](expr: A =>: B): A => B =
     expr match {
-      case _: Expression.Id[A]            => identity[A](_)
-      case e: Expression.Compose[A, x, B] => evalExpr(e.f).compose(evalExpr(e.g))
-      case e: Expression.FanOut[A, x, y] =>
+      case _: Expression.Id[A]                   => identity[A](_)
+      case e: Expression.Compose[A, x, B]        => evalExpr(e.f).compose(evalExpr(e.g))
+      case e: Expression.FanOut[A, x, y]         =>
         val ff = evalExpr(e.f)
         val gg = evalExpr(e.g)
 
         (in: A) => (ff(in), gg(in))
-      case e: Expression.Split[x, y, w, z] =>
+      case e: Expression.Split[x, y, w, z]       =>
         val ff = evalExpr(e.f)
         val gg = evalExpr(e.g)
 
         (in: (x, y)) => ff(in._1) -> gg(in._2)
-      case e: Expression.LongLiteral[A]    => _ => e.l
-      case e: Expression.StringLiteral[A]  => _ => e.s
-      case e: Expression.BooleanLiteral[A] => _ => e.b
-      case Expression.Mul                  => (tp: (Long, Long)) => tp._1 * tp._2
-      case Expression.Sum                  => (tp: (Long, Long)) => tp._1 + tp._2
-      case Expression.Split                => (tp: (String, String)) => tp._1.split(tp._2).toList
-      case e: Expression.NthColumn[A, B]   => (tp: A) => tp.asInstanceOf[Product].productElement(e.n).asInstanceOf[B]
-      case _: Expression.FlipTuple[a, b]   => (tp: (a, b)) => (tp._2, tp._1)
-      case e: Expression.KeyValue[A, k, v] =>
+      case e: Expression.LongLiteral[A]          => _ => e.l
+      case e: Expression.StringLiteral[A]        => _ => e.s
+      case e: Expression.BooleanLiteral[A]       => _ => e.b
+      case Expression.Mul                        => (tp: (Long, Long)) => tp._1 * tp._2
+      case Expression.Sum                        => (tp: (Long, Long)) => tp._1 + tp._2
+      case Expression.Split                      => (tp: (String, String)) => tp._1.split(tp._2).toList
+      case e: Expression.NthColumn[A, B]         => (tp: A) => tp.asInstanceOf[Product].productElement(e.n).asInstanceOf[B]
+      case _: Expression.FlipTuple[a, b]         => (tp: (a, b)) => (tp._2, tp._1)
+      case e: Expression.KeyValue[A, k, v]       =>
         val keyExpr   = evalExpr(e.key)
         val valueExpr = evalExpr(e.value)
 
         (a: A) => Grouped(keyExpr(a), valueExpr(a))
-      case _: Expression.Length[v] =>
+      case _: Expression.Length[v]               =>
         (l: List[v]) => l.length.toLong
-      case _: Expression.GroupKey[k, v] =>
+      case _: Expression.GroupKey[k, v]          =>
         (g: Group[k, v]) => g.key
-      case _: Expression.GroupValues[k, v] =>
+      case _: Expression.GroupValues[k, v]       =>
         (g: Group[k, v]) => g.values.toSeq.toList
-      case _: Expression.GroupedKey[k, v] =>
+      case _: Expression.GroupedKey[k, v]        =>
         (g: Grouped[k, v]) => g.key
-      case _: Expression.GroupedValue[k, v] =>
+      case _: Expression.GroupedValue[k, v]      =>
         (g: Grouped[k, v]) => g.value
-      case _: Expression.ConstructGrouped[k, v] =>
+      case _: Expression.ConstructGrouped[k, v]  =>
         (tp: (k, v)) => Grouped(tp._1, tp._2)
-      case Expression.ListSum =>
+      case Expression.ListSum                    =>
         (l: List[Long]) => l.sum
-      case _: Expression.TimestampedValue[a] =>
+      case _: Expression.TimestampedValue[a]     =>
         (a: Timestamped[a]) => a.value
       case _: Expression.TimestampedTimestamp[a] =>
         (a: Timestamped[a]) => a.timestamp
@@ -75,35 +75,34 @@ object Local {
       val qstream = ZStream.unwrapManaged {
         for {
           decider <- Promise.make[Nothing, (Option[K], V) => UIO[Int => Boolean]].toManaged_
-          out <- Queue
-                  .bounded[Take[E1, (K, GroupBy.DequeueOnly[Take[E1, V]])]](buffer)
-                  .toManaged(_.shutdown)
-          emit <- Ref.make[Boolean](true).toManaged_
-          ref  <- Ref.make[Map[K, Int]](Map()).toManaged_
-          add <- self
-                  .mapM(f)
-                  .distributedDynamicWith(
-                    buffer,
-                    (kv: (Option[K], V)) => decider.await.flatMap(_.tupled(kv)),
-                    out.offer
-                  )
-          _ <- decider.succeed {
-                case (None, _) => ZIO.succeed(_ => true)
-                case (Some(k), _) =>
-                  ref.get.map(_.get(k)).flatMap {
-                    case Some(idx) => ZIO.succeed(_ == idx)
-                    case None =>
-                      emit.get.flatMap {
-                        case true =>
-                          add.flatMap {
-                            case (idx, q) =>
-                              (ref.update(_ + (k -> idx)) *>
-                                out.offer(Take.Value(k -> q.map(_.map(_._2))))).as(_ == idx)
-                          }
-                        case false => ZIO.succeed(_ => false)
-                      }
-                  }
-              }.toManaged_
+          out     <- Queue
+                       .bounded[Take[E1, (K, GroupBy.DequeueOnly[Take[E1, V]])]](buffer)
+                       .toManaged(_.shutdown)
+          emit    <- Ref.make[Boolean](true).toManaged_
+          ref     <- Ref.make[Map[K, Int]](Map()).toManaged_
+          add     <- self
+                       .mapM(f)
+                       .distributedDynamicWith(
+                         buffer,
+                         (kv: (Option[K], V)) => decider.await.flatMap(_.tupled(kv)),
+                         out.offer
+                       )
+          _       <- decider.succeed {
+                       case (None, _)    => ZIO.succeed(_ => true)
+                       case (Some(k), _) =>
+                         ref.get.map(_.get(k)).flatMap {
+                           case Some(idx) => ZIO.succeed(_ == idx)
+                           case None      =>
+                             emit.get.flatMap {
+                               case true  =>
+                                 add.flatMap { case (idx, q) =>
+                                   (ref.update(_ + (k -> idx)) *>
+                                     out.offer(Take.Value(k -> q.map(_.map(_._2))))).as(_ == idx)
+                                 }
+                               case false => ZIO.succeed(_ => false)
+                             }
+                         }
+                     }.toManaged_
         } yield ZStream.fromQueueWithShutdown(out).unTake
       }
       new ZStream.GroupBy(qstream, buffer)
@@ -144,7 +143,7 @@ object Local {
           .mapAccum(zz(())) { (s, rec) =>
             rec match {
               case w @ Watermark(_) => (s, w)
-              case Element(x) =>
+              case Element(x)       =>
                 val (s2, a) = ff(s -> x)
                 (s2, Element(a))
             }
@@ -163,12 +162,12 @@ object Local {
         val reducer = evalExpr(ds.f)
 
         evalStream(ds.ds).groupByOrBroadcast {
-          case w @ Watermark(_) => UIO.succeed(None          -> w)
+          case w @ Watermark(_) => UIO.succeed(None -> w)
           case Element(rec)     => UIO.succeed(Some(rec.key) -> Element(rec.value))
         } { (k, vs) =>
           Stream.fromEffect(
-            vs.collect {
-              case Element(v) => v
+            vs.collect { case Element(v) =>
+              v
             }.runCollect
               .map(vs => Element(reducer(Group(k, Chunk.fromIterable(vs)))))
           )
@@ -199,7 +198,7 @@ object Local {
 
         stream.mapConcat {
           case w @ Watermark(_) => List(w)
-          case Element(g) =>
+          case Element(g)       =>
             val key     = g.key
             val windows = ds.window.assign(g.value.timestamp)
 
@@ -207,24 +206,22 @@ object Local {
         }.groupByOrBroadcast {
           case w @ Watermark(_) =>
             UIO.succeed(None -> w)
-          case Element(g) =>
+          case Element(g)       =>
             UIO.succeed(Some(g.key) -> Element(g.value))
-        } {
-          case ((window, k), vs) =>
-            vs.mapAccum(z(()) -> -1L) {
-                case ((s, currMark), Element(v)) =>
-                  if (currMark <= window.upper)
-                    ((f((s, window, v)), currMark), List())
-                  else
-                    ((s, currMark), List())
+        } { case ((window, k), vs) =>
+          vs.mapAccum(z(()) -> -1L) {
+            case ((s, currMark), Element(v)) =>
+              if (currMark <= window.upper)
+                ((f((s, window, v)), currMark), List())
+              else
+                ((s, currMark), List())
 
-                case ((s, currMark), Watermark(w)) =>
-                  if (w > currMark && w > window.upper)
-                    ((z(()), w), List(Watermark(w), Element(Grouped(k, Windowed(window, s)))))
-                  else
-                    ((s, w), List())
-              }
-              .mapConcat(identity)
+            case ((s, currMark), Watermark(w)) =>
+              if (w > currMark && w > window.upper)
+                ((z(()), w), List(Watermark(w), Element(Grouped(k, Windowed(window, s)))))
+              else
+                ((s, w), List())
+          }.mapConcat(identity)
         }
     }
 }

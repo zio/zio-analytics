@@ -26,10 +26,10 @@ object Type {
       Expression.FanOut(fst.lift(a._1), snd.lift(a._2))
   }
 
-  implicit val longType: Type[Long]       = Long
-  implicit val stringType: Type[String]   = String
-  implicit val booleanType: Type[Boolean] = Boolean
-  implicit val unknownType: Type[Any]     = Unknown
+  implicit val longType: Type[Long]                                            = Long
+  implicit val stringType: Type[String]                                        = String
+  implicit val booleanType: Type[Boolean]                                      = Boolean
+  implicit val unknownType: Type[Any]                                          = Unknown
   implicit def tuple2Type[A, B](implicit A: Type[A], B: Type[B]): Type[(A, B)] =
     Tuple2(A, B)
 }
