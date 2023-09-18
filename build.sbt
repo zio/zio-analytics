@@ -40,9 +40,9 @@ buildInfoPackage := "zio.analytics"
 buildInfoObject := "BuildInfo"
 
 libraryDependencies ++= Seq(
-  "dev.zio"     %% "zio-streams"  % "1.0.0-RC16",
-  "dev.zio"     %% "zio-test"     % "1.0.0-RC16" % "test",
-  "dev.zio"     %% "zio-test-sbt" % "1.0.0-RC16" % "test",
+  "dev.zio"     %% "zio-streams"  % "1.0.18",
+  "dev.zio"     %% "zio-test"     % "1.0.18" % "test",
+  "dev.zio"     %% "zio-test-sbt" % "1.0.18" % "test",
   "com.lihaoyi" %% "pprint"       % "0.5.6" % "test",
   compilerPlugin("org.spire-math" %% "kind-projector" % "0.9.10")
 )
